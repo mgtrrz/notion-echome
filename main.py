@@ -79,7 +79,13 @@ class VmObject(TableRow):
 
 # Check echome for new VMs
 vm_client = Session().client("Vm")
-vms = vm_client.describe_all()
+try:
+    vms = vm_client.describe_all()
+except Exception as e:
+    print("Could not retrieve list of VMs!")
+    print(e)
+    exit(1)
+
 for vm in vms:
     name = vm["tags"]["Name"] if "Name" in vm["tags"] else None
     ip = vm["attached_interfaces"]["config_at_launch"]["private_ip"]
