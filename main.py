@@ -9,9 +9,12 @@ echomeDb = os.environ["NOTION_DB_ID"]
 notion = Client(auth=os.environ["NOTION_TOKEN"])
 
 dbs = notion.databases.query(database_id=echomeDb)
-ips_in_table = []
+ips_in_table = {}
 for result in dbs["results"]:
-    ips_in_table.append(result["properties"]["IP"]["title"][0]["plain_text"])
+    pprint(result)
+    ips_in_table[result["id"]] = result["properties"]["IP"]["title"][0]["plain_text"]
+
+pprint(ips_in_table)
 
 @dataclass
 class TableRow:
@@ -82,14 +85,14 @@ for vm in vms:
     ip = vm["attached_interfaces"]["config_at_launch"]["private_ip"]
     status = vm["state"]["state"]
 
-    if ip not in ips_in_table:
+    if ip not in ips_in_table.values():
         # add it to the Notion table
         newVm = VmObject(
             IP=ip,
             Name=name,
             Type="VM",
             Host="ecHome",
-            status=status,
+            Status=status,
             Description=vm["tags"]["Description"] if "Description" in vm["tags"] else None
         )
         pprint(newVm)
@@ -100,4 +103,9 @@ for vm in vms:
             },
             properties=newVm.render_json()
         )
+
+        #ips_in_table.remove(ip)
+    
+# Are there any IPs left over from the Notion table?
+# If so, they're probably terminated VMs. Remove them!
 
