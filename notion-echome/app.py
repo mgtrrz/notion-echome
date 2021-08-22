@@ -11,3 +11,6 @@ def front_page():
 def update_notion():
     from notion import update_notion
     return update_notion()
+
+if __name__ == '__main__':
+    app.run(debug = False, port = 8080, host = '0.0.0.0', threaded = True)
