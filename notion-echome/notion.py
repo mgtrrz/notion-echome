@@ -5,17 +5,6 @@ from dataclasses import dataclass, field
 from echome import Session
 import types
 
-echomeDb = os.environ["NOTION_DB_ID"]
-notion = Client(auth=os.environ["NOTION_TOKEN"])
-
-dbs = notion.databases.query(database_id=echomeDb)
-ips_in_table = {}
-for result in dbs["results"]:
-    pprint(result)
-    ips_in_table[result["id"]] = result["properties"]["IP"]["title"][0]["plain_text"]
-
-pprint(ips_in_table)
-
 @dataclass
 class TableRow:
     def _title(self, text) -> dict:
@@ -76,42 +65,50 @@ class VmObject(TableRow):
     def __str__(self) -> str:
         return self.IP
 
+def update_notion():
+    echomeDb = os.environ["NOTION_DB_ID"]
+    notion = Client(auth=os.environ["NOTION_TOKEN"])
 
-# Check echome for new VMs
-vm_client = Session().client("Vm")
-try:
-    vms = vm_client.describe_all()
-except Exception as e:
-    print("Could not retrieve list of VMs!")
-    print(e)
-    exit(1)
+    dbs = notion.databases.query(database_id=echomeDb)
+    ips_in_table = {}
+    for result in dbs["results"]:
+        pprint(result)
+        ips_in_table[result["id"]] = result["properties"]["IP"]["title"][0]["plain_text"]
 
-for vm in vms:
-    name = vm["tags"]["Name"] if "Name" in vm["tags"] else None
-    ip = vm["attached_interfaces"]["config_at_launch"]["private_ip"]
-    status = vm["state"]["state"]
+    # Check echome for new VMs
+    vm_client = Session().client("Vm")
+    try:
+        vms = vm_client.describe_all()
+    except Exception as e:
+        print("Could not retrieve list of VMs!")
+        raise Exception(e)
 
-    if ip not in ips_in_table.values():
-        # add it to the Notion table
-        newVm = VmObject(
-            IP=ip,
-            Name=name,
-            Type="VM",
-            Host="ecHome",
-            Status=status,
-            Description=vm["tags"]["Description"] if "Description" in vm["tags"] else None
-        )
-        pprint(newVm)
+    for vm in vms:
+        name = vm["tags"]["Name"] if "Name" in vm["tags"] else None
+        ip = vm["attached_interfaces"]["config_at_launch"]["private_ip"]
+        status = vm["state"]["state"]
 
-        notion.pages.create(
-            parent={
-                "database_id": echomeDb
-            },
-            properties=newVm.render_json()
-        )
+        if ip not in ips_in_table.values():
+            # add it to the Notion table
+            newVm = VmObject(
+                IP=ip,
+                Name=name,
+                Type="VM",
+                Host="ecHome",
+                Status=status,
+                Description=vm["tags"]["Description"] if "Description" in vm["tags"] else None
+            )
+            pprint(newVm)
 
-        #ips_in_table.remove(ip)
-    
-# Are there any IPs left over from the Notion table?
-# If so, they're probably terminated VMs. Remove them!
+            notion.pages.create(
+                parent={
+                    "database_id": echomeDb
+                },
+                properties=newVm.render_json()
+            )
 
+            #ips_in_table.remove(ip)
+        
+    # Are there any IPs left over from the Notion table?
+    # If so, they're probably terminated VMs. Remove them!
+    return {"status": "success"}
