@@ -1,5 +1,10 @@
 from json.encoder import JSONEncoder
 from flask import Flask
+import sentry_sdk
+
+sentry_sdk.init(
+    traces_sample_rate=1.0
+)
 
 app = Flask(__name__)
 
